@@ -1,35 +1,28 @@
+import fetch from "node-fetch";
+
 export default async function handler(req, res) {
   try {
-    const server = process.env.IPTV_SERVER;
+    const IPTV_URL = process.env.IPTV_SERVER;
 
-    if (!server) {
-      return res.status(500).send("IPTV server not configured");
+    const html = await fetch(`${IPTV_URL}`).then((r) => r.text());
+
+    const match = html.match(/const allChannels = (\[.*?\]);/s);
+    if (!match) return res.status(500).send("allChannels not found");
+
+    const allChannels = JSON.parse(match[1]);
+
+    let playlist = "#EXTM3U\n";
+
+    for (const ch of allChannels) {
+      const apiUrl = `${IPTV_URL}/api/channel?id=${ch.channelId}`;
+
+      playlist += `#EXTINF:-1 tvg-logo="${ch.logo}" tvg-id="${ch.channelId}" tvg-name="${ch.channelName}" group-title="${ch.groupName}",${ch.channelName}\n`;
+      playlist += `${apiUrl}\n`;
     }
 
-    // Fetch the HTML
-    const response = await fetch(`${server}/`);
-    const html = await response.text();
-
-    // Extract allChannels
-    const channelsMatch = html.match(/const allChannels = (\[.*?\]);/s);
-    if (!channelsMatch) {
-      return res.status(500).send("Could not find allChannels in HTML");
-    }
-
-    const allChannels = JSON.parse(channelsMatch[1]);
-
-    // Build playlist
-    let playlist = "#EXTM3U\n\n";
-    const base = `${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'}/api/channel`;
-
-    allChannels.forEach((ch) => {
-      playlist += `#EXTINF:-1 tvg-id="${ch.id}" group-title="${ch.category}", ${ch.name}\n`;
-      playlist += `${base}?id=${ch.id}\n\n`;
-    });
-
-    res.setHeader("Content-Type", "application/x-mpegURL");
-    res.send(playlist.trim());
+    res.setHeader("Content-Type", "application/x-mpegurl");
+    res.send(playlist);
   } catch (err) {
-    res.status(500).send("Error: " + err.message);
+    res.status(500).send("Server error");
   }
 }
