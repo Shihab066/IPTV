@@ -20,20 +20,20 @@ export default async function handler(req, res) {
       return;
     }
 
-    let decoded = Buffer.from(encodedMatch[1], "base64").toString("utf8");
+    let decodedUrl = Buffer.from(encodedMatch[1], "base64").toString("utf8");
 
     // Convert to direct .m3u8 URL
-    decoded = decoded.replace("/embed.html", "/index.fmp4.m3u8");
+    decodedUrl = decodedUrl.replace("/embed.html", "/index.fmp4.m3u8");
 
     // Remove autoplay and mute query params
-    decoded = decoded
+    decodedUrl = decodedUrl
       .replace(/([&?])(autoplay|mute)=[^&]+/g, "")
       .replace(/\?&/, "?")
       .replace(/&$/, "");
 
     res.setHeader("Content-Type", "application/vnd.apple.mpegurl");
     res.setHeader("Access-Control-Allow-Origin", "*");
-    res.send(decoded);
+    res.redirect(decodedUrl);
   } catch (err) {
     console.error(err);
     res.status(500).send("Server error");
