@@ -7,10 +7,17 @@ export default async function handler(req, res) {
 
     const html = await fetch(IPTV_URL).then((r) => r.text());
 
-    const match = html.match(/const allChannels = (\[.*?\]);/s);
-    if (!match) return res.status(500).send("allChannels not found");
+    // 1. Extract encryptedData
+    const match = html.match(/const encryptedData\s*=\s*"([^"]+)"/);
+    if (!match) {
+      return res.status(500).send("encryptedData not found");
+    }
 
-    const allChannels = JSON.parse(match[1]);
+    // 2. Decode Base64 → JSON
+    const decoded = Buffer.from(match[1], "base64").toString("utf-8");
+
+    // 3. Parse channels
+    const allChannels = JSON.parse(decoded);
 
     let playlist = "#EXTM3U\n";
 
